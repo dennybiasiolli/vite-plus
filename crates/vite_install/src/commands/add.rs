@@ -158,6 +158,24 @@ impl PackageManager {
                 if options.save_exact {
                     args.push("--exact".into());
                 }
+                // yarn@1 supports root adds via `-W`; yarn berry does not have an equivalent.
+                let is_berry = self.is_yarn_berry();
+                if options.workspace_root {
+                    if is_berry {
+                        output::warn("yarn berry add does not support --workspace-root");
+                    } else {
+                        args.push("-W".into());
+                    }
+                }
+                if options.workspace_only {
+                    output::warn("yarn add does not support --workspace");
+                }
+                if options.save_catalog_name.is_some() {
+                    output::warn("yarn add does not support --save-catalog / --save-catalog-name");
+                }
+                if options.allow_build.is_some() {
+                    output::warn("yarn add does not support --allow-build");
+                }
             }
             PackageManagerType::Npm => {
                 bin_name = "npm".into();
@@ -195,6 +213,18 @@ impl PackageManager {
                 if options.save_exact {
                     args.push("--save-exact".into());
                 }
+                // pnpm-only flags — warn instead of silently dropping them
+                if options.workspace_only {
+                    output::warn(
+                        "npm does not support --workspace (pnpm only-if-exists); use --filter <package> (maps to npm --workspace <package>)",
+                    );
+                }
+                if options.save_catalog_name.is_some() {
+                    output::warn("npm does not support --save-catalog / --save-catalog-name");
+                }
+                if options.allow_build.is_some() {
+                    output::warn("npm does not support --allow-build");
+                }
             }
             PackageManagerType::Bun => {
                 bin_name = "bun".into();
@@ -228,10 +258,10 @@ impl PackageManager {
                     output::warn("bun add does not support --workspace-root");
                 }
                 if options.workspace_only {
-                    output::warn("bun add does not support --workspace-only");
+                    output::warn("bun add does not support --workspace");
                 }
                 if options.save_catalog_name.is_some() {
-                    output::warn("bun add does not support --save-catalog-name");
+                    output::warn("bun add does not support --save-catalog / --save-catalog-name");
                 }
                 if options.allow_build.is_some() {
                     output::warn("bun add does not support --allow-build");
@@ -469,7 +499,8 @@ mod tests {
             allow_build: None,
             pass_through_args: None,
         });
-        assert_eq!(result.args, vec!["add", "--dev", "typescript"]);
+        // yarn@1 maps --workspace-root to `-W` (same as install)
+        assert_eq!(result.args, vec!["add", "--dev", "-W", "typescript"]);
         assert_eq!(result.bin_path, "yarn");
     }
 

@@ -122,6 +122,21 @@ impl PackageManager {
                         args.push("--interactive".into());
                     }
                 }
+                // Shared yarn@1 / yarn berry gaps for flags that exist on the unified CLI
+                if options.workspace_root {
+                    output::warn("yarn update does not support --workspace-root");
+                }
+                if options.workspace_only {
+                    output::warn("yarn update does not support --workspace");
+                }
+                if !is_berry {
+                    if options.recursive {
+                        output::warn("yarn@1 upgrade does not support --recursive");
+                    }
+                    if options.interactive {
+                        output::warn("yarn@1 upgrade does not support --interactive");
+                    }
+                }
             }
             PackageManagerType::Npm => {
                 bin_name = "npm".into();
@@ -164,6 +179,11 @@ impl PackageManager {
                 if options.interactive {
                     output::warn("npm doesn't support interactive mode. Running standard update.");
                 }
+                if options.workspace_only {
+                    output::warn(
+                        "npm does not support --workspace (pnpm only-if-exists) on update",
+                    );
+                }
             }
             PackageManagerType::Bun => {
                 bin_name = "bun".into();
@@ -187,6 +207,17 @@ impl PackageManager {
                 }
                 if options.recursive {
                     args.push("--recursive".into());
+                }
+                if options.workspace_root {
+                    output::warn("bun update does not support --workspace-root");
+                }
+                if options.workspace_only {
+                    output::warn("bun update does not support --workspace");
+                }
+                if let Some(filters) = options.filters
+                    && !filters.is_empty()
+                {
+                    output::warn("bun update does not support --filter");
                 }
             }
         }
