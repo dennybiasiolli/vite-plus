@@ -41,6 +41,7 @@ const guideSidebar = [
       { text: 'Environment', link: '/guide/env' },
       { text: 'Installer Environment Variables', link: '/guide/installer-env-vars' },
       { text: 'Why Vite+', link: '/guide/why' },
+      { text: 'Vite+ vs Rstack', link: '/guide/comparison-rstack' },
     ],
   },
   {

@@ -37,3 +37,7 @@ Unifying the toolchain has performance benefits beyond just using faster tools o
 Vite+ is fully open source and not a new framework or locked-down platform. Vite+ integrates with the existing Vite ecosystem and the frameworks built on top of it, including React, Vue, Svelte, and others. It can use pnpm, npm, yarn, or Bun as package manager, and manages the Node.js runtime for you.
 
 We always welcome contributions from the community. See our [Contributing Guidelines](https://github.com/voidzero-dev/vite-plus/blob/main/CONTRIBUTING.md) to get involved.
+
+## Comparing toolchains
+
+If you are evaluating Vite+ next to other unified toolchains, see [Vite+ vs Rstack](/guide/comparison-rstack) for a practical comparison with Web Infra’s Rstack (Rspack / Rsbuild family).
