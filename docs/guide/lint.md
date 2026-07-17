@@ -8,6 +8,8 @@
 
 Use `vp lint` to lint your project, and `vp check` to format, lint and type-check all at once.
 
+On a clean pass, `vp lint` always prints Oxlint's summary (for example `Found 0 warnings and 0 errors`) so a successful run is distinguishable from a run that did not execute. This remains true in CI environments that set `GITHUB_ACTIONS=true`, where Oxlint would otherwise switch reporters and omit the success summary. Pass `--format` / `-f` or `--silent` when you intentionally want a different reporter or no diagnostics.
+
 ## Usage
 
 ```bash
@@ -15,7 +17,6 @@ vp lint
 vp lint --fix
 vp lint --type-aware
 ```
-
 ## Configuration
 
 Put lint configuration directly in the `lint` block in `vite.config.ts` so all your configuration stays in one place. We do not recommend using `oxlint.config.ts` or `.oxlintrc.json` with Vite+.

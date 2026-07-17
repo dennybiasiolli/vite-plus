@@ -100,6 +100,13 @@ impl SubcommandResolver {
                     args.insert(1, config_file.clone());
                 }
 
+                // When `GITHUB_ACTIONS=true`, oxlint auto-switches to the GitHub
+                // reporter and omits the success summary ("Found 0 warnings and 0
+                // errors"). Force the default reporter so a clean `vp lint` always
+                // prints a visible summary — same approach as `vp check`.
+                // Respect explicit user overrides (`--format` / `-f`, `--silent`).
+                inject_lint_default_format(&mut args);
+
                 Ok(ResolvedSubcommand {
                     program: Arc::from(OsStr::new("node")),
                     args: iter::once(Str::from("--disable-warning=MODULE_TYPELESS_PACKAGE_JSON"))
@@ -350,4 +357,99 @@ fn merge_resolved_envs_with_version(
     map.entry(Arc::from(OsStr::new("VP_VERSION")))
         .or_insert_with(|| Arc::from(OsStr::new(env!("CARGO_PKG_VERSION"))));
     merged
+}
+
+/// True when the user already chose an oxlint output mode we must not override.
+///
+/// `--quiet` is intentionally *not* an override: it only suppresses warning
+/// diagnostics and still benefits from the default human reporter summary.
+fn lint_has_output_mode_override(args: &[String]) -> bool {
+    let mut expect_format_value = false;
+    for arg in args {
+        if expect_format_value {
+            return true;
+        }
+        if arg == "--" {
+            break;
+        }
+        if arg == "--silent" {
+            return true;
+        }
+        if arg == "--format" || arg == "-f" {
+            expect_format_value = true;
+            continue;
+        }
+        if arg.starts_with("--format=") || arg.starts_with("-f=") {
+            return true;
+        }
+    }
+    // Trailing bare `--format` without a value still counts as an explicit override
+    // so we do not inject a competing `--format=default`.
+    expect_format_value
+}
+
+/// Inject `--format=default` unless the user already set a format/silent mode.
+///
+/// Placement: after an auto/user `-c <path>` pair when present and complete,
+/// otherwise at the front so incomplete `vp lint -c` never panics on insert.
+fn inject_lint_default_format(args: &mut Vec<String>) {
+    if lint_has_output_mode_override(args) {
+        return;
+    }
+    let insert_at = if args.len() >= 2 && args.first().is_some_and(|a| a == "-c") { 2 } else { 0 };
+    args.insert(insert_at, "--format=default".to_string());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{inject_lint_default_format, lint_has_output_mode_override};
+
+    #[test]
+    fn lint_output_override_detects_format_and_silent_flags() {
+        assert!(!lint_has_output_mode_override(&[]));
+        assert!(!lint_has_output_mode_override(&["src".into(), ".".into()]));
+        assert!(lint_has_output_mode_override(&["--format=json".into()]));
+        assert!(lint_has_output_mode_override(&["--format".into(), "unix".into()]));
+        assert!(lint_has_output_mode_override(&["-f".into(), "json".into()]));
+        assert!(lint_has_output_mode_override(&["--silent".into()]));
+        // `--quiet` only suppresses warnings; still inject default format.
+        assert!(!lint_has_output_mode_override(&["--quiet".into()]));
+        // Value after `--` is a path, not a format override.
+        assert!(!lint_has_output_mode_override(&["--".into(), "--format=json".into()]));
+    }
+
+    #[test]
+    fn inject_default_format_after_complete_config_pair() {
+        let mut args = vec!["-c".into(), "vite.config.ts".into(), "src".into()];
+        inject_lint_default_format(&mut args);
+        assert_eq!(args, vec!["-c", "vite.config.ts", "--format=default", "src"]);
+    }
+
+    #[test]
+    fn inject_default_format_at_front_when_no_config() {
+        let mut args = vec!["src".into()];
+        inject_lint_default_format(&mut args);
+        assert_eq!(args, vec!["--format=default", "src"]);
+    }
+
+    #[test]
+    fn inject_default_format_does_not_panic_on_incomplete_c_flag() {
+        let mut args = vec!["-c".into()];
+        inject_lint_default_format(&mut args);
+        assert_eq!(args, vec!["--format=default", "-c"]);
+    }
+
+    #[test]
+    fn inject_default_format_skips_when_format_already_set() {
+        let mut args = vec!["--format=json".into(), "src".into()];
+        inject_lint_default_format(&mut args);
+        assert_eq!(args, vec!["--format=json", "src"]);
+    }
+
+    #[test]
+    fn inject_default_format_alongside_quiet() {
+        let mut args = vec!["--quiet".into()];
+        inject_lint_default_format(&mut args);
+        assert_eq!(args, vec!["--format=default", "--quiet"]);
+    }
 }
